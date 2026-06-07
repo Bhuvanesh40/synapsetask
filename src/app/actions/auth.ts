@@ -3,6 +3,8 @@
 import db from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { signIn } from '@/auth'
+import { AuthError } from 'next-auth'
 
 const RegisterSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -74,5 +76,43 @@ export async function registerUser(formData: z.infer<typeof RegisterSchema>) {
   } catch (error: any) {
     console.error('Registration error:', error)
     return { success: false, error: `Registration failed: ${error.message || error}` }
+  }
+}
+
+const LoginSchema = z.object({
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+})
+
+export async function loginUser(formData: z.infer<typeof LoginSchema>) {
+  const validatedFields = LoginSchema.safeParse(formData)
+  
+  if (!validatedFields.success) {
+    return {
+      success: false,
+      error: validatedFields.error.issues[0].message,
+    }
+  }
+
+  const { email, password } = validatedFields.data
+
+  try {
+    await signIn('credentials', {
+      email,
+      password,
+      redirectTo: '/dashboard',
+    })
+    return { success: true }
+  } catch (error: any) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return { success: false, error: 'Invalid email or password.' }
+        default:
+          return { success: false, error: 'Something went wrong. Please try again.' }
+      }
+    }
+    // Next.js redirect mechanism throws an error to initiate redirection, we must rethrow it!
+    throw error
   }
 }

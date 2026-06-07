@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { signIn } from 'next-auth/react'
+import { loginUser } from '@/app/actions/auth'
 import { Eye, EyeOff, Loader2, Zap } from 'lucide-react'
 
 function LoginForm() {
@@ -29,22 +29,13 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      const res = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (res?.error) {
-        setError('Invalid email or password. Please try again.')
-      } else {
-        // Successful login, redirect to dashboard
-        router.push('/dashboard')
-        router.refresh()
+      const res = await loginUser({ email, password })
+      if (res && !res.success) {
+        setError(res.error || 'Invalid email or password. Please try again.')
+        setLoading(false)
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
