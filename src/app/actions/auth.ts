@@ -112,12 +112,6 @@ export async function loginUser(formData: z.infer<typeof LoginSchema>) {
           return { success: false, error: 'Something went wrong. Please try again.' }
       }
     }
-    // Next.js redirect mechanism throws an error to initiate redirection.
-    // We catch it and return success: true so the client can redirect manually.
-    if (error.message === 'NEXT_REDIRECT' || (error.digest && error.digest.startsWith('NEXT_REDIRECT'))) {
-      return { success: true }
-    }
-
     throw error
   }
 }
