@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs'
 
 // Set fallback secrets for build-time compilation if missing on Vercel
 if (!process.env.AUTH_SECRET) {
-  process.env.AUTH_SECRET = 'build-time-placeholder-secret-must-be-32-chars-long'
+  process.env.AUTH_SECRET = process.env.NEXTAUTH_SECRET || 'build-time-placeholder-secret-must-be-32-chars-long'
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
