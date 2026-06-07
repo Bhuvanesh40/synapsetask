@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from 'next-auth'
 
 export const authConfig = {
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'build-time-placeholder-secret-must-be-32-chars-long',
   pages: {
     signIn: '/login',
     newUser: '/register',
