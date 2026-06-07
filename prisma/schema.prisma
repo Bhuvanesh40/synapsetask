@@ -1,0 +1,175 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  SYNCED
+  COMPLETED
+}
+
+enum IntegrationPlatform {
+  JIRA
+  GITHUB
+}
+
+model User {
+  id            String            @id @default(cuid())
+  name          String?
+  email         String            @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?           // For email/password signup/login
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  memberships   WorkspaceMember[]
+  meetings      Meeting[]         @relation("CreatedMeetings")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Workspace {
+  id           String                 @id @default(cuid())
+  name         String
+  slug         String                 @unique
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  members      WorkspaceMember[]
+  meetings     Meeting[]
+  integrations WorkspaceIntegration[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        Role      @default(MEMBER)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Meeting {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  title         String
+  description   String?      @db.Text
+  date          DateTime     @default(now())
+  rawTranscript String       @db.Text
+  duration      Int?         // in minutes
+  audioUrl      String?
+  videoUrl      String?
+  createdById   String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User         @relation("CreatedMeetings", fields: [createdById], references: [id]) // Wait, in Prisma relation fields is just fields: [createdById]
+  actionItems   ActionItem[]
+  summaries     Summary[]
+}
+
+model ActionItem {
+  id                 String               @id @default(cuid())
+  meetingId          String
+  title              String
+  description        String               @db.Text
+  priority           Priority             @default(MEDIUM)
+  status             TaskStatus           @default(PENDING)
+  assigneeName       String?
+  assigneeEmail      String?
+  dueDate            DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  meeting            Meeting              @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  integrationMapping IntegrationMapping[]
+}
+
+model WorkspaceIntegration {
+  id                 String              @id @default(cuid())
+  workspaceId        String
+  platform           IntegrationPlatform
+  encryptedToken     String              @db.Text // Encrypted token
+  config             String?             @db.Text // JSON config (e.g. repo mapping, Jira base URL)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, platform])
+}
+
+model IntegrationMapping {
+  id           String              @id @default(cuid())
+  actionItemId String
+  platform     IntegrationPlatform
+  externalId   String              // e.g. "PROJ-123" or "45"
+  externalUrl  String
+  syncedAt     DateTime            @default(now())
+  actionItem   ActionItem          @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+
+  @@unique([actionItemId, platform])
+}
+
+model Summary {
+  id           String   @id @default(cuid())
+  meetingId    String
+  summaryText  String   @db.Text
+  markdownDoc  String   @db.Text // Comprehensive project specification or architectural design
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  meeting      Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
