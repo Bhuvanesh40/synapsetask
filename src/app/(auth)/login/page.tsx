@@ -33,8 +33,14 @@ function LoginForm() {
       if (res && !res.success) {
         setError(res.error || 'Invalid email or password. Please try again.')
         setLoading(false)
+      } else {
+        router.push('/dashboard')
+        router.refresh()
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message === 'NEXT_REDIRECT' || err.digest?.startsWith('NEXT_REDIRECT')) {
+        return
+      }
       setError('An unexpected error occurred. Please try again.')
       setLoading(false)
     }
